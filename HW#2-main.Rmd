@@ -75,12 +75,14 @@ bat.fm <- spRecover(bat.fm, start=1, thin=1, verbose=F)
 # plot posterior pdfs
 beta = bat.fm$p.beta.recover.samples
 theta = bat.fm$p.theta.recover.samples
-plot(beta)
+par(mfrow=c(2,2))
+plot(beta,auto.layout=FALSE)
 plot(theta)
+par(mfrow=c(1,1))
 ```
-The results from the MCMC are used to predict values on the grid using a Krigging model on the residuals
+The results from the MCMC are used to predict values on the grid using a Krigging model on the residuals (This chunk is not evaluated in the knit version and the results are incorporated in the next chunk from a backup file containing the results calculated independtly).
 
-```{r}
+```{r eval=FALSE}
 n.samples2 = floor(n.samples*(2/3)) # consider only the last 2/3 of the MCMC simulations
 dropped=n.samples-n.samples2
 yHBM = matrix(nrow=length(dem[,1]), ncol=n.samples2) # store y values at each dem point for each sample
@@ -107,6 +109,9 @@ for(i in 1:n.samples2){
 The results from krigging over the MCMC sample are used to plot the posterior parameters of the Bayesian Hierarchical Spatial Model: histogram of precipitation, spatial map of mean, and spatial map of standard error.
 
 ```{r}
+load("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2/backupv1.RData")
+yHBM=backup1 #backup files
+ySE=backup2
 mean.y = apply(yHBM, 1, FUN = mean) # posterior mean of precipitation
 mean.yse = apply(ySE, 1, FUN = mean) # posterior standard error
 
