@@ -1,0 +1,16 @@
+---
+title: "Sourcing libraries, data, and functions"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r results="hide"}
+## PASTE HERE ALL CODE FROM source_file.R
+
+
+
+```
+

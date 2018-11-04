@@ -1,0 +1,126 @@
+---
+title: "HW_2-mainv2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1. Bayesian Hierarchical Spatial Model
+### (Do HW#1.11) Estimate the spatial surface of January precipitation with a Bayesian Hierarchical Spatial Model (see Verdin et al. 2015)
+
+Initialize (source) libraries, functions:
+```{r}
+setwd("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2")
+source("source_file.R")
+set.seed(1) # Set seed to repodruce results
+```
+
+### Fit a variogram on the residuals of a best GLM
+Simple GLM:Y ~ Elev
+
+```{r}
+
+# Fit GLM
+y=jan$Prec/10 #Use cm instead of mm
+Elev=jan$Elev
+xx=jan[!colnames(jan) %in% "Prec"]
+yglm=glm(y ~ Elev,data = xx)
+
+# Fit a variogram 
+geod = as.geodata(cbind(xx$Long,xx$Lat,yglm$residuals))
+geod = jitterDupCoords(geod,max=0.01) #jitter close values
+vg = variog(geod,uvec = 12)
+plot(vg)
+
+```
+
+With the results from the variogram we can assign the initial value of the Monte Carlo Markov Chain
+```{r}
+# Sigma, phi, (nugget set to zero)
+sigma.sq = median(vg$v)
+sigma.sq.lo = 0.25*sigma.sq
+sigma.sq.hi = 1.75*sigma.sq
+phi.val = median(vg$u) 
+phi.lo = 0.25*phi.val
+phi.hi = 1.75*phi.val
+
+n.samples <- 1000 # Input number of samples
+coords <- geod$coords # coordinates of observations
+
+# prior distributions defined (limited distributions available... see help(spLM)
+priors <- list("beta.flat", "phi.unif"=c(phi.lo,phi.hi),
+               "sigma.sq.ig"=c(sigma.sq.lo,sigma.sq.hi))
+
+# starting values for MCMC resampling
+starting <- list("phi"=phi.val, "sigma.sq"=sigma.sq)#, "tau.sq"=100)
+
+# adjustment factor for MCMC sampling routine
+tuning <- list("phi"=1, "sigma.sq"=1)#, "tau.sq"=100) # WJR why set these to 1??
+```
+
+### Perform Monte Carlo Markov Chain Analysis and plot posterior values
+
+```{r}
+bat.fm <- spLM(formula=y~Elev, data=xx, coords=coords, priors=priors, tuning=tuning, starting=starting, cov.model = "exponential", n.samples = n.samples, verbose = FALSE, n.report = 1000)
+# burn-in samples
+bat.fm <- spRecover(bat.fm, start=1, thin=1, verbose=F)
+
+# plot posterior pdfs
+beta = bat.fm$p.beta.recover.samples
+theta = bat.fm$p.theta.recover.samples
+plot(beta)
+plot(theta)
+```
+The results from the MCMC are used to predict values on the grid using a Krigging model on the residuals (This chunk is not evaluated in the knit version and the results are incorporated in the next chunk from a backup file containing the results calculated independtly).
+
+```{r eval=FALSE}
+n.samples2 = floor(n.samples*(2/3)) # consider only the last 2/3 of the MCMC simulations
+dropped=n.samples-n.samples2
+yHBM = matrix(nrow=length(dem[,1]), ncol=n.samples2) # store y values at each dem point for each sample
+ySE = matrix(nrow=length(dem[,1]), ncol=n.samples2) # same for SE
+
+xx=jan[colnames(jan) %in% c("Long","Lat")] # ind.var for Krigging model
+xdem=dem[colnames(dem) %in% c("Long","Lat")]
+
+# Loop over Krigging at each sample point
+for(i in 1:n.samples2){
+  ykrig=Krig(xx,yglm$residuals,rho = theta[dropped+i,1],theta = theta[dropped+i,2],m = 1)    # Krig model
+  y2=predict.Krig(ykrig,x=xdem,drop.Z = TRUE) # Predict residual from Krig at DEM locations
+  ySE[,i]=predictSE(ykrig,x=xdem,drop.Z = TRUE)                 # Predict SE of Krig at DEM 
+  
+  y1 = beta[i,1] + beta[i,2]*dem[,3]                              # Predict y from MCMC
+  yHBM[,i]=y1+y2                                                  # Add MCMC and residuals
+  sprintf("Iteration %s complete",i)
+}
+```
+The results from krigging over the MCMC sample are used to plot the posterior parameters of the Bayesian Hierarchical Spatial Model: histogram of precipitation, spatial map of mean, and spatial map of standard error.
+
+```{r}
+load("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2/backupv2.RData")
+yHBM=backup1 #backup files
+ySE=backup2
+mean.y = apply(yHBM, 1, FUN = mean) # posterior mean of precipitation
+mean.yse = apply(ySE, 1, FUN = mean) # posterior standard error
+
+par(mfrow=c(1,1))
+hist(yHBM, main = "Histogram of Precipitation Posterior")
+
+#Create spatial data to plot
+X_sp<-getSpatialDataFrame(cbind(xdem,mean.y))
+X_sp<-NAD83(X_sp)
+X_ppp<-as.ppp(data.frame(X_sp@coords,X_sp@data$`mean.y`), W=colf_owin)
+
+zz_sp<-getSpatialDataFrame(cbind(xdem,mean.yse))
+zz_sp<-NAD83(zz_sp)
+zz_ppp<-as.ppp(data.frame(zz_sp@coords,zz_sp@data$`mean.yse`), W=colf_owin)
+
+# plot calls
+generateplot(X_ppp)
+title(main ='January - BHSM - Predicted Precipitation of Precip. (cm)')
+
+generateplot(zz_ppp)
+title(main='January - BHSM - Predicted Standard Error of Precip. (cm)')
+```
+
