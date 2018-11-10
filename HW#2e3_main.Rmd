@@ -1,0 +1,80 @@
+---
+title: "HW#2e3_main"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 3. Principal Component Analysis 
+
+### (i) Perform a PCA on the winter global SST anomalies
+Source libraries, data and functions. Import and setup SST data
+```{r }
+setwd("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2")
+source("source_e3.R")
+set.seed(1) # Set seed to repodruce results
+
+nrows=72 # data import setup
+ncols=36
+nyrs = 118  # Nov 1900 - Mar 2018
+locs=       # used later  
+  scan("http://civil.colorado.edu/~balajir/CVEN6833/R-sessions/session2/sst-lat-long.txt") %>% #pipe magrittr package
+  matrix(., ncol=2, byrow=T)
+
+xgrid=seq(27.5,382.5,by=5) #Generate grid (-180,180) format
+xgrid[xgrid>180]=xgrid[xgrid>180]-360
+
+xygrid=expand.grid(x=xgrid,y=seq(-87.5,87.5,by=5)) %>% .[c("y","x")] # Lat - Long grid..
+
+kaplan = # SST data row per year format
+  readBin("http://iridl.ldeo.columbia.edu/SOURCES/.KAPLAN/.EXTENDED/.v2/.ssta/data.r4",what="numeric", n=( nrows * ncols * nyrs), size=4,endian="swap") %>% # Read Kaplan SST data..
+  array(data = ., dim=c( nrows*ncols, nyrs ) ) %>% t(.) # 2D
+kaplan[kaplan>10]=NA #Make NA when no data
+
+sstdata=kaplan[,!is.na(kaplan[1,])] # Drop NA
+```
+
+The PCA is performed using the SST data
+
+```{r}
+zs=var(scale(sstdata))   #get variance matrix..
+zsvd=svd(zs)  #do an Eigen decomposition..
+pcs=t(t(zsvd$u) %*% t(scale(sstdata))) #Principal Components...
+lambdas=(zsvd$d/sum(zsvd$d)) #Eigen Values.. - fraction variance 
+```
+
+#### Variance explained by each principal component
+
+```{r }
+plot(1:40, lambdas[1:40], type="l", xlab="Modes", ylab="Frac. Var. explained")
+points(1:40, lambdas[1:40], col="red")
+```
+
+#### First four spatial components or Eigen Vector patterns
+
+```{r}
+xlong = sort(unique(xygrid[,2]))
+ylat = sort(unique(xygrid[,1]))
+
+for(i in 1:4){
+  zfull = rep(NaN,length(xygrid[,1]))
+  zfull[!is.na(kaplan[1,])]=zsvd$u[,i]
+  zmat = matrix(zfull,nrow=nrows,ncol=ncols)
+
+  par(pty="s")
+  image.plot(xlong,ylat,zmat,ylim=range(-40,70),main=paste("Spatial Component (eigenvector) number",i))
+  contour(xlong,ylat,(zmat),ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
+  world(add=TRUE,shift=TRUE)
+}
+```
+
+#### First four Principal Components (time)
+
+```{r}
+for(i in 1:4){
+  plot(seq(from=1900,length.out=nyrs), pcs[,i],type="l",xlab="Year",ylab=paste("PC",i),main=paste("Spatial Component (eigenvector) number",i))
+}
+
+```
