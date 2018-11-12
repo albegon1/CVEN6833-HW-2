@@ -3,49 +3,46 @@ title: "HW#2e3_main"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, ref.label="sources"}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
 ## Exercise 3. Principal Component Analysis 
 
 ### (i) Perform a PCA on the winter global SST anomalies
 Source libraries, data and functions. Import and setup SST data
-```{r }
+```{r kaplan}
 setwd("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2")
-source("source_e3.R")
 set.seed(1) # Set seed to repodruce results
+# Libraries, functions (and variables) are sourced from the last chunk ("sources") at the end of the page.
+
+require(magrittr)
 
 nrows=72 # data import setup
 ncols=36
-nyrs = 118  # Nov 1900 - Mar 2018
-locs=       # used later  
-  scan("http://civil.colorado.edu/~balajir/CVEN6833/R-sessions/session2/sst-lat-long.txt") %>% #pipe magrittr package
-  matrix(., ncol=2, byrow=T)
+nyrs = 118  # Nov-Mar avg 1901 - 2018
 
 xgrid=seq(27.5,382.5,by=5) #Generate grid (-180,180) format
 xgrid[xgrid>180]=xgrid[xgrid>180]-360
+ygrid=seq(-87.5,87.5,by=5)
+xygrid=expand.grid(x=xgrid,y=ygrid) %>% .[c("y","x")] # Lat - Long grid..
 
-xygrid=expand.grid(x=xgrid,y=seq(-87.5,87.5,by=5)) %>% .[c("y","x")] # Lat - Long grid..
-
-kaplan = # SST data row per year format
-  readBin("http://iridl.ldeo.columbia.edu/SOURCES/.KAPLAN/.EXTENDED/.v2/.ssta/data.r4",what="numeric", n=( nrows * ncols * nyrs), size=4,endian="swap") %>% # Read Kaplan SST data..
+kaplan = # SST data row per NDJFM season format
+  readBin("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/Kaplan-SST-NDJFM1900-NDJFM2018.r4",what="numeric", n=( nrows * ncols * nyrs), size=4,endian="swap") %>% # Read Kaplan SST data..
   array(data = ., dim=c( nrows*ncols, nyrs ) ) %>% t(.) # 2D
-kaplan[kaplan>10]=NA #Make NA when no data
 
-sstdata=kaplan[,!is.na(kaplan[1,])] # Drop NA
+index1=kaplan[1,]<10 & kaplan[1,] != "NaN"
+sstdata=kaplan[,index1] # Drop missing data
 ```
 
-The PCA is performed using the SST data
+The PCA is performed using the SST data. First we calculate the variance matrix, SVD decomposition, and Eigenvalues.
 
-```{r}
-zs=var(scale(sstdata))   #get variance matrix..
-zsvd=svd(zs)  #do an Eigen decomposition..
+```{r PCA_kaplan}
+zsvd = sstdata %>% scale(.) %>% var(.) %>% svd(.) # scale # get variance # Eigen decomposition
 pcs=t(t(zsvd$u) %*% t(scale(sstdata))) #Principal Components...
-lambdas=(zsvd$d/sum(zsvd$d)) #Eigen Values.. - fraction variance 
+lambdas=(zsvd$d/sum(zsvd$d)) #Eigen Values.. - fraction variance explained 
 ```
 
-#### Variance explained by each principal component
+#### Plot of variance explained by each principal component
 
 ```{r }
 plot(1:40, lambdas[1:40], type="l", xlab="Modes", ylab="Frac. Var. explained")
@@ -55,26 +52,231 @@ points(1:40, lambdas[1:40], col="red")
 #### First four spatial components or Eigen Vector patterns
 
 ```{r}
-xlong = sort(unique(xygrid[,2]))
-ylat = sort(unique(xygrid[,1]))
+xlong = sort(xgrid,index.return=TRUE)
+ylat = sort(ygrid,index.return=TRUE)
 
 for(i in 1:4){
-  zfull = rep(NaN,length(xygrid[,1]))
-  zfull[!is.na(kaplan[1,])]=zsvd$u[,i]
+  zfull = rep(NA,length(xygrid[,1]))
+  zfull[index1]=zsvd$u[,i]
   zmat = matrix(zfull,nrow=nrows,ncol=ncols)
+  zmat = zmat[xlong[["ix"]],] %>% .[,ylat[["ix"]]] # match SST values with sorted rows,columns
 
-  par(pty="s")
-  image.plot(xlong,ylat,zmat,ylim=range(-40,70),main=paste("Spatial Component (eigenvector) number",i))
-  contour(xlong,ylat,(zmat),ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
-  world(add=TRUE,shift=TRUE)
+  image.plot(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),main=paste("Spatial Component (eigenvector) number",i))
+  contour(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
+  world(fill=TRUE, col="darkgray",border="gray",add=TRUE)
 }
 ```
 
 #### First four Principal Components (time)
 
+```{r fig.width=16}
+par(mfrow=c(2,2))
+nino4=scan("http://iridl.ldeo.columbia.edu/SOURCES/.Indices/.nino/.EXTENDED/.NINO4/T/(Nov%201899)/(Mar%202018)/RANGE/T/(Nov-Mar)/seasonalAverage/data.ch") # ENSO data
+
+for(i in 1:4){
+  plot(seq(from=1901,length.out=nyrs), scale(pcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Temporal Component (eigenvalue) number",i))
+  if(i==2){lines(1901:2018, nino4, col="red") 
+    legend(x=1,y=1,legend=c("PC","ENSO"))}
+}
+```
+### (ii) Rotate the first 6 PCs and plot the leading 4 spatial and temporal modes of variability
+There are three ways to do it, see: <https://stats.stackexchange.com/questions/59213/how-to-compute-varimax-rotated-principal-components-in-r>
+We will use the varimax function and calculate the scores via rotation matrix
+```{r}
+zrot = varimax(zsvd$u[,1:6],normalize=FALSE)
+for(i in 1:4){
+  zfull = rep(NA,length(xygrid[,1]))
+  zfull[index1]=zrot$loadings[,i]
+  zmat = matrix(zfull,nrow=nrows,ncol=ncols)
+  zmat = zmat[xlong[["ix"]],] %>% .[,ylat[["ix"]]] # match SST values with sorted rows,columns
+
+  image.plot(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),main=paste("Rotated spatial component (eigenvector) number",i))
+  contour(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
+  world(fill=TRUE, col="darkgray",border="gray",add=TRUE)
+  }
+```
+The use of rotated PCA allows us to observe a more acute spatial distribution of the eigenvectors
+
+The rotated temporal components are:
+
+```{r fig.width=16}
+par(mfrow=c(2,2))
+rotpcs=t(t(zrot$loadings) %*% t(scale(sstdata)))
+for(i in 1:4){
+  plot(seq(from=1901,length.out=nyrs), scale(rotpcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Rotated Temporal Component (eigenvector) number",i))
+    if(i==2){lines(1901:2018, nino4, col="red") 
+    legend(x=1,y=1,legend=c("PC","ENSO"))}
+}
+```
+
+This temporal components seem similar to the originals.
+
+### (iii) Perform PCA and rotated PCA on the western US winter precipitation (Nov1900 – Mar2013) 113
+yrs
+First we import grid location and precipitation data
+```{r}
+N = 113 # Time window
+wuplocs = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/WesternUS-coords.txt"), ncol=5,byrow=T)
+nlocs = dim(wuplocs)[1]
+xlats = wuplocs[,3]
+xlongs = -wuplocs[,4]
+
+winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/western-US-winterprecip-1901-2014.txt"),ncol=nlocs+1,byrow=T)
+years = 1901:2013
+winterprecip = winterprecip[,2:(nlocs+1)]		#first column is year
+```
+
+#### Do PCA on precipitation data
+
+```{r}
+zsvd = winterprecip %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
+pcs=t(t(zsvd$u) %*% t(scale(winterprecip))) # Principal Components
+lambdas=(zsvd$d/sum(zsvd$d)) # Eigenvalues
+```
+
+#### Variance explained by each principal component
+
+```{r }
+plot(1:25, lambdas[1:25], type="l", xlab="Modes", ylab="Frac. Var. explained")
+points(1:25, lambdas[1:25], col="red")
+```
+
+#### First four spatial components or Eigen Vector patterns
+
 ```{r}
 for(i in 1:4){
-  plot(seq(from=1900,length.out=nyrs), pcs[,i],type="l",xlab="Year",ylab=paste("PC",i),main=paste("Spatial Component (eigenvector) number",i))
+  quilt.plot(xlongs,xlats,zsvd$u[,i],xlim=range(-125,-100),main=paste("Spatial Component (eigenvector) number",i))
+  map("state",add=TRUE)
 }
+```
+
+#### First four Principal Components (time)
+
+```{r fig.width=16}
+par(mfrow=c(2,2))
+westernpcs=as.data.frame(matrix(, nrow = length(pcs[,1]), ncol = 4))
+colnames(westernpcs)=c("PC1","PC2","PC3","PC4")
+for(i in 1:4){
+  westernpcs[,i]=scale(pcs[,i])
+  plot(seq(from=1901,length.out=N),scale(pcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Spatial Component (eigenvector) number",i))
+}
+```
+
+#### Rotation of the first 6 first PCs and plot of the leading 4 spatial and temporal modes of variability
+```{r}
+zrot = varimax(zsvd$u[,1:6],normalize=FALSE)
+for(i in 1:4){
+  quilt.plot(xlongs, xlats, zrot$loadings[,i],xlim=range(-125,-100),main=paste("Rotated spatial mode (Eigenvector) number",i))
+  map("state",add=TRUE)
+}
+```
+
+#### Plot of the first four rotated PC
+A simple glm is added to show trend.
+```{r fig.width=16}
+par(mfrow=c(2,2))
+rotpcs=t(t(zrot$loadings) %*% t(scale(winterprecip)))
+for(i in 1:4){
+  plot(seq(from=1901,length.out=N), scale(rotpcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Rotated Spatial Component (eigenvector) number",i))
+  if(i==1){
+    abline(glm(rotpcs[,i]~seq(from = 1901,length.out = N)), col="blue", lwd=2) # trend
+  }
+  } 
+```
+
+### (iv) Perform a PCA on the Pacific Ocean domain and correlate the first four PCs of winter SSTs with that of the western US precipitation and show correlation maps.
+
+To perform PCA on the Pacific Ocean grid only, we retrieve kaplan and trim grid to study area
+
+```{r ref.label="kaplan", echo=FALSE}
+```
+
+```{r}
+pacgrid=xygrid$y >= -20 & (xygrid$x >= 105 | xygrid$x <= -70) #grid limits
+indexpac=index1 & pacgrid # locations on kaplan grid
+xygrid1 = xygrid[indexpac,] # coordinates on kaplan grid
+
+sstannavg = kaplan[,indexpac] # Pacific data 
+```
+
+Now we do PCA on data
+
+```{r}
+zsvd = sstannavg %>% scale(.) %>% var(.) %>% svd(.) # SVD decomposition
+pcs=t(t(zsvd$u) %*% t(scale(sstannavg)))
+lambdas=(zsvd$d/sum(zsvd$d))
+```
+
+#### Plot of variance explained by each principal component
+
+```{r }
+plot(1:25, lambdas[1:25], type="l", xlab="Modes", ylab="Frac. Var. explained")
+points(1:25, lambdas[1:25], col="red")
+```
+
+#### First four spatial components or Eigen Vector patterns
+
+```{r}
+xgrid=seq(27.5,382.5,by=5) #Generate grid (27.5,382.5) format
+xlong = sort(xgrid,index.return=TRUE)
+ylat = sort(ygrid,index.return=TRUE)
+
+for(i in 1:4){
+  zfull = rep(NA,length(xygrid[,1]))
+  zfull[indexpac]=zsvd$u[,i]
+  zmat = matrix(zfull,nrow=nrows,ncol=ncols)
+  zmat = zmat[xlong[["ix"]],] %>% .[,ylat[["ix"]]] # match SST values with sorted rows,columns
+
+  image.plot(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),main=paste("Spatial Component (eigenvector) number",i))
+  contour(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
+  map("world2",fill = TRUE,col="darkgray",border="gray",add=TRUE)
+}
+```
+
+#### First four Principal Components (time)
+
+```{r fig.width=16}
+par(mfrow=c(2,2))
+pacificpcs=as.data.frame(matrix(, nrow = length(pcs[,1]), ncol = 4))
+colnames(pacificpcs)=c("PC1","PC2","PC3","PC4")
+for(i in 1:4){
+  pacificpcs[,i]=scale(pcs[,i])
+  plot(seq(from=1901,length.out=nyrs), scale(pcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Temporal Component (eigenvalue) number",i))
+}
+```
+
+#### First four Principal Components (time)
+
+```{r fig.width=16, fig.height=16}
+par(mfrow=c(4,4))
+par(pty="m")
+for(i in 1:4){
+  for(j in 1:4){
+    fit=locfit::locfit(westernpcs[,j]~pacificpcs[1:113,i])
+      plot(fit,get.data=TRUE,ylab=ifelse(j==1,paste("Precip",colnames(westernpcs)[i]),""),xlab=ifelse(i==4,paste("Pac SST",colnames(pacificpcs)[j]),""))   
+    # }
+    }
+  }
+```
+All relations show low correlation, indicating that the results may be wrong.Relation Pacific SST PC2 - PreciP PC1 has a significant parameter in a linear regression, but R2 is only 0.07.
+
+#### Aux code to call libraries, own functions and variables
+```{r sources, results=FALSE}
+##
+## Source Libraries
+##
+libr=c("magrittr","maps","akima","fields","tidyr","locfit")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+
+##
+## Source data
+##
+
+
+##
+## Source functions
+## 
 
 ```
