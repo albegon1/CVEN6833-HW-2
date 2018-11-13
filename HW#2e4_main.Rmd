@@ -3,26 +3,150 @@ title: "HW#2_e4_main"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, ref.label="sources"}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Exercise 4. PCA + Multinomial Regression 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### (a) Perform a PCA on the attribute data of the safety ocutcome of body part - show the Eigen spectrum and the leading four Eigen vectors
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+*bpartbin* is the categorical variable vector
+*Xpredictors* are the 20 most relevant variables to body part safety
+This data is obtained from the source file included at the end of the exercise.
 
-```{r cars}
-summary(cars)
+```{r}
+zsvd = Xpredictors %>% scale(.) %>% var(.) %>% svd(.) # scale # get variance # Eigen decomposition
+pcs=t(t(zsvd$u) %*% t(scale(Xpredictors))) #Principal Components...
+lambdas=(zsvd$d/sum(zsvd$d)) #Eigen Values.. - fraction variance explained 
+
+plot(1:20, lambdas[1:20], type="l", xlab="Modes", ylab="Frac. Var. explained",main="Eigen spectrum") #plot spectrum
+points(1:20, lambdas[1:20], col="red")
+
+par(las=2) # horizontal y - axis label
+par(mar=c(4,12,4,4)) # increase y-axis margin.
+
+for(i in 1:4){ # plot the four eigenvectors against each attribute
+  barplot(zsvd$u[,i],main=paste("Eigenvector",i,"influence on each attribute"),names.arg = colnames(Xpredictors),horiz=TRUE,cex.names=0.8)
+  indexmax=sort(abs(zsvd$u[,i]),decreasing = TRUE,index.return = TRUE) # sort eigen by largest values 
+  print(sprintf("Most influential attributes eigenvector %s: %s",i,paste(colnames(Xpredictors)[indexmax$ix[1:4]],collapse = " / "))) # print the four most influential attributes in eigenvector.
+  }
 ```
 
-## Including Plots
+### (b) Fit a best multinomial regression with the principal components as predictors to model the categorical probability of injuries to the five category of body parts and compute the RPSS
 
-You can also embed plots, for example:
+```{r}
+pcs = cbind(data.frame(bpartbin),data.frame(pcs)) # dataset
+zz = multinom(pcs$bpartbin ~ ., data = pcs[,1:6]) # Multinomial log-linear regression
+N = log(length(bpartbin)) # penalty function for stepAIC
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+zbest=stepAIC(zz,k=N) # Check if the selected model is the best. It turns to be the best
+
+# Prediction skill via RPSS
+ypred = predict(zz, type = "probs") # prediction model
+
+p.real=rep(NA,5) # Real probabilities
+for(i in 1:5){
+  p.real[i]=table(bpartbin)[i]/length(bpartbin)
+}
+
+rps(bpartbin,ypred,baseline = p.real)$rpss
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+This score, RPSS, answers the question: What is the relative improvement of the probability forecast over body injury data in predicting the category that the observations fell into (p.real based on counts vs.  multinom. regression prediction).
+
+### (c) Repeat the process for Injury Severity data
+
+*spartbin* is the categorical variable vector for injury severity data. Only 4 levels were found in the csv file despite being described as 6 in Tixier et al. (2016)
+*Xpredsev* are the 20 most relevant attributes to injury severity part.
+This data is obtained from the source file included at the end of the exercise.
+
+#### PCA on the attribute data
+
+```{r}
+zsvd = Xpredsev %>% scale(.) %>% var(.) %>% svd(.) # scale # get variance # Eigen decomposition
+pcs=t(t(zsvd$u) %*% t(scale(Xpredsev))) #Principal Components...
+lambdas=(zsvd$d/sum(zsvd$d)) #Eigen Values.. - fraction variance explained 
+
+plot(1:20, lambdas[1:20], type="l", xlab="Modes", ylab="Frac. Var. explained",main="Eigen spectrum") #plot spectrum
+points(1:20, lambdas[1:20], col="red")
+
+par(las=2) # horizontal y - axis label
+par(mar=c(4,12,4,4)) # increase y-axis margin.
+
+for(i in 1:4){ # plot the four eigenvectors against each attribute
+  barplot(zsvd$u[,i],main=paste("Eigenvector",i,"influence on each attribute"),names.arg = colnames(Xpredsev),horiz=TRUE,cex.names=0.8)
+  indexmax=sort(abs(zsvd$u[,i]),decreasing = TRUE,index.return = TRUE) # sort eigen by largest values 
+  print(sprintf("Most influential attributes eigenvector %s: %s",i,paste(colnames(Xpredsev)[indexmax$ix[1:4]],collapse = " / "))) # print the four most influential attributes in eigenvector.
+  }
+```
+
+#### Best multinomial regression with the principal components as predictors to model the categorical probability of injuries to the five category of body parts and compute the RPSS
+
+```{r}
+pcs = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
+zz = multinom(pcs$spartbin ~ ., data = pcs[,2:6]) # Multinomial log-linear regression
+N = log(length(spartbin)) # penalty function for stepAIC
+
+zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant value is the best model
+
+# Prediction skill via RPSS
+ypred = predict(zz, type = "probs") # prediction model
+
+p.real=rep(NA,4) # Real probabilities
+for(i in 1:4){
+  p.real[i]=table(spartbin)[i]/length(spartbin)
+}
+
+rps(spartbin,ypred,baseline = p.real)$rpss
+```
+
+According to the definition of the RPSS the improvement given by the model is really low, as it happens to Tixier et al. (2016) due to imbalanced categories.
+
+#### Aux code to call libraries, own functions and variables
+```{r sources, results=FALSE}
+##
+## Source Libraries
+##
+libr=c("magrittr","nnet","MASS","verification")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+
+##
+## Source data
+##
+
+### Safety data
+to.retain=20 # imp var to retain
+imp.vars.energy=as.character(read.csv("gbm.importance.50.energy.csv",header=TRUE)[1:to.retain,"var"])
+imp.vars.inj.type=as.character(read.csv("gbm.importance.50.code.csv",header=TRUE)[1:to.retain,"var"])
+imp.vars.body=as.character(read.csv("gbm.importance.50.body.csv",header=TRUE)[1:to.retain,"var"])
+imp.vars.severity=c("crane","heavy.material.tool","stairs","unpowered.tool","exiting.transitioning","heavy.vehicle","uneven.surface","drill","ladder","object.at.height","improper.procedure.inattention","unpowered.transporter","machinery","improper.security.of.materials","working.at.height","no.improper.PPE","small.particle","steel.steel.sections","stripping","scaffold")
+
+# Body data
+data.body = read.csv("data.body.part.csv") 
+index = data.body %>% {colnames(.) %in% imp.vars.body} %>% which(.)
+
+Xpredictors = data.body[,index]
+
+bpartbin = data.body[,1] %>% as.character(.) 
+bpartbin = bpartbin %>% {. == "head"} %>% replace(bpartbin, . , 1) %>% replace(., .== "neck", 2) %>% replace(., .== "trunk" , 3) %>% replace(., .== "upper extremities" , 4) %>% replace(., .== "lower extremities" , 5) %>% as.numeric(.) # Categorical variables
+
+#Injury severity data
+data.severity=read.csv("data.severity.csv")
+index = data.severity %>% {colnames(.) %in% imp.vars.severity} %>% which(.)
+
+Xpredsev = data.severity[,index]
+
+spartbin = data.severity[,1] %>% as.character(.)
+sevname=unique(spartbin)
+spartbin = spartbin %>% {. == sevname[1]} %>% replace(spartbin, . , 1) %>% replace(., .== sevname[2], 2) %>% replace(., .== sevname[3] , 3) %>% replace(., .== sevname[4] , 4) %>% as.numeric(.) # Categorical variables
+
+
+
+##
+## Source functions
+## 
+
+```
