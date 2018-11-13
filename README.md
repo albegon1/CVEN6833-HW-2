@@ -8,7 +8,7 @@ Access [here](https://albegon1.github.io/CVEN6833-HW-2/HW_2e1-main_v2.html)
 Bayesian Hierarchical model using a a best GLM (7 covariates).
 Access [here](https://albegon1.github.io/CVEN6833-HW-2/HW_2e1-main_v1.html)
 
-The functions, data import and libraries are sourced in a separate file. Access [here](https://albegon1.github.io/CVEN6833-HW-2/source_file.html 
+The functions, data import and libraries are sourced in a separate file. Access [here](https://albegon1.github.io/CVEN6833-HW-2/source_file.html)
 
 ## Exercise 2
 Bayesian Hierarchical model using a binomial distribution. Access [here](https://albegon1.github.io/CVEN6833-HW-2/HW_2e2-main.html)
