@@ -81,7 +81,8 @@ for(i in 1:4){ # plot the four eigenvectors against each attribute
   }
 ```
 
-#### Best multinomial regression with the principal components as predictors to model the categorical probability of injuries to the five category of body parts and compute the RPSS
+#### Best multinomial regression with the PCA as predictors to model the probability of injuries
+This is done for  each of  the five category of body parts and later compute the RPSS
 
 ```{r}
 pcs = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
