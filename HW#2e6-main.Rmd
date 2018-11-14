@@ -1,0 +1,117 @@
+---
+title: "HW#2e6-main"
+output: html_document
+---
+
+```{r setup, include=FALSE, ref.label="sources"}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 6. Clustering: Cluster the January and July precipitation over Colorado 
+January and July data, together with functions and libraries are loaded at the end of the document.
+
+### (i) Identify the best number of clusters (Kbest) using lat, long, elev
+
+To identify the best K we use the WSS distances of the scaled data.
+```{r}
+datajan=scale(jan) %>% data.frame(.)
+datajul=scale(jul) %>% data.frame(.)
+
+par(mfrow=c(1,2))
+wssplot(datajan,nc=30) # Plots With-In-Sum-Of-Squares (elbow curve) # See source chunk
+wssplot(datajul,nc=30) # Plots With-In-Sum-Of-Squares (elbow curve) # See source chunk
+```
+
+### (ii) Cluster the data into Kbest clusters and display them (using lat, long, elev)
+
+There is no clear elbow in the data, but we can assume differences are relatively small once k is around 7.
+
+```{r}
+size=7
+
+plotkmeans(jan,size) # Plots clusters spatially, function defined at the end
+plotkmeans(jul,size) # jul
+
+```
+
+### (iii) Identify the best number of clusters (Kbest) using lat, long
+
+```{r}
+datajan=scale(jan[!colnames(jan) %in% "Elev"]) %>% data.frame(.)
+datajul=scale(jul[!colnames(jul) %in% "Elev"]) %>% data.frame(.)
+
+par(mfrow=c(1,2))
+wssplot(datajan,nc=30) # Plots With-In-Sum-Of-Squares (elbow curve) # See source chunk
+wssplot(datajul,nc=30) # Plots With-In-Sum-Of-Squares (elbow curve) # See source chunk
+```
+
+### (iv) Cluster the data into Kbest clusters and display them (using lat, long)
+
+Again, there is no clear elbow in the data, but we can assume differences are relatively small once k is around 10. We will choose 7 to compare them better with the previous clusterings.
+
+```{r}
+size=7
+
+plotkmeans(jan,size) # Plots clusters spatially, function defined at the end
+plotkmeans(jul,size) # jul
+
+```
+
+The maps are similar to the previous ones, showing that *Elevation* is not relevant.
+
+#### Aux code to call libraries, own functions and variables
+
+```{r sources, results=FALSE}
+##
+## Source Libraries
+##
+
+libr=c("stats","magrittr","maps","colorRamps")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+
+##
+## Source data
+##
+
+### January and July precipitation
+jan=read.table("http://cires1.colorado.edu/~aslater/CVEN_6833/colo_monthly_precip_01.dat")
+colnames(jan)<-c("Lat","Long","Elev","Prec")
+
+jul=read.table("http://cires1.colorado.edu/~aslater/CVEN_6833/colo_monthly_precip_07.dat")
+colnames(jul)<-c("Lat","Long","Elev","Prec")
+
+data=list(jan,jul) #Set up all data
+datan<-list("jan","jul")
+for(i in 1:length(data)){
+  datanames<-colnames(data[[i]])          # temp. Headings
+  data[[i]]<-data[[i]][c("Prec",datanames[!datanames %in% "Prec"])] #Predictor first
+  data[[i]]$Prec<-ifelse(data[[i]]$Prec<=0,NA,data[[i]]$Prec) #Eliminate zero-neg values
+  data[[i]]<-data[[i]][complete.cases(data[[i]]), ] # Clean data
+}
+for(i in 1:length(datan)){assign(as.character(datan[[i]]),data[[i]])}
+
+##
+## Source functions
+## 
+
+### Plot With-In-Sum-Of-Squares  #
+wssplot <- function(data, nc=15, seed=1234){
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares",main = substitute(data))}
+
+### Plot spatial clustering data  #
+plotkmeans = function(data,size){
+  clust=kmeans(scale(data),size) # clustering k=size
+  print("Number of elements of each cluster: ")
+  print(clust$size)          # N at each cluster
+
+  plot(data$Long, data$Lat, col = primary.colors()[clust$cluster], xlab = "Longitude", ylab = "Latitude", main = paste("Clusters for",substitute(data) ,"precipitation of Colorado (1980-2002) - K =", size), pch = 16, asp = 1)
+  map('county', 'colorado',col = "grey", lwd = 2, add=TRUE)
+  }
+```
