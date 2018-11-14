@@ -36,8 +36,8 @@ for(i in 1:4){ # plot the four eigenvectors against each attribute
 ### (b) Fit a best multinomial regression with the principal components as predictors to model the categorical probability of injuries to the five category of body parts and compute the RPSS
 
 ```{r}
-pcs = cbind(data.frame(bpartbin),data.frame(pcs)) # dataset
-zz = multinom(pcs$bpartbin ~ ., data = pcs[,1:6]) # Multinomial log-linear regression
+pcsb = cbind(data.frame(bpartbin),data.frame(pcs)) # dataset
+zz = multinom(pcsb$bpartbin ~ ., data = pcsb[,1:6]) # Multinomial log-linear regression
 N = log(length(bpartbin)) # penalty function for stepAIC
 
 zbest=stepAIC(zz,k=N) # Check if the selected model is the best. It turns to be the best
@@ -45,12 +45,12 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. It turns to be 
 # Prediction skill via RPSS
 ypred = predict(zz, type = "probs") # prediction model
 
-p.real=rep(NA,5) # Real probabilities
+p.real=rep(NA,5) # Real probabilities (counts / total)
 for(i in 1:5){
   p.real[i]=table(bpartbin)[i]/length(bpartbin)
 }
 
-rps(bpartbin,ypred,baseline = p.real)$rpss
+rps(bpartbin,ypred,baseline = p.real)$rpss # Get RPSS score
 ```
 
 This score, RPSS, answers the question: What is the relative improvement of the probability forecast over body injury data in predicting the category that the observations fell into (p.real based on counts vs.  multinom. regression prediction).
@@ -82,11 +82,12 @@ for(i in 1:4){ # plot the four eigenvectors against each attribute
 ```
 
 #### Best multinomial regression with the PCA as predictors to model the probability of injuries
-This is done for  each of  the five category of body parts and later compute the RPSS
+
+This is done for each of the four categories of injury severity and later compute the RPSS
 
 ```{r}
-pcs = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
-zz = multinom(pcs$spartbin ~ ., data = pcs[,2:6]) # Multinomial log-linear regression
+pcss = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
+zz = multinom(pcss$spartbin ~ ., data = pcss[,2:6]) # Multinomial log-linear regression
 N = log(length(spartbin)) # penalty function for stepAIC
 
 zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant value is the best model
@@ -102,14 +103,31 @@ for(i in 1:4){
 rps(spartbin,ypred,baseline = p.real)$rpss
 ```
 
-According to the definition of the RPSS the improvement given by the model is really low, as it happens to Tixier et al. (2016) due to imbalanced categories.
+According to the definition of the RPSS the improvement given by the model is really low, as it happens to Tixier et al. (2016) due to imbalanced number of data in each category.
+
+### (d) Apply CART and compare the results
+
+```{r fig.height=6}
+tree.body = rpart(bpartbin ~ X1+X2+X3+X4, data=pcsb, method="class") # rpart package
+tree.sev = rpart(spartbin ~ X1+X2+X3+X4, data=pcss, method="class") # rpart package
+
+summary(tree.body)
+
+plot(tree.body,main="Classification Tree for body part safety")
+text(tree.body, all=TRUE, cex=.8)
+
+summary(tree.sev) # No tree, just one node
+try(plot(tree.sev,main="Classification Tree for injury severity")) # gives error
+```
+
+The results observed via PCA analysis are confirmed in the CART: while body part safety tree has 4 nodes, the injury severity has just one (no classification possible).
 
 #### Aux code to call libraries, own functions and variables
 ```{r sources, results=FALSE}
 ##
 ## Source Libraries
 ##
-libr=c("magrittr","nnet","MASS","verification")
+libr=c("magrittr","nnet","MASS","verification","rpart")
 options(warn=-1)
 suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
 
