@@ -156,8 +156,8 @@ for(i in 1:4){ # plot the four eigenvectors against each attribute
 </div>
 <div id="b-fit-a-best-multinomial-regression-with-the-principal-components-as-predictors-to-model-the-categorical-probability-of-injuries-to-the-five-category-of-body-parts-and-compute-the-rpss" class="section level3">
 <h3>(b) Fit a best multinomial regression with the principal components as predictors to model the categorical probability of injuries to the five category of body parts and compute the RPSS</h3>
-<pre class="r"><code>pcs = cbind(data.frame(bpartbin),data.frame(pcs)) # dataset
-zz = multinom(pcs$bpartbin ~ ., data = pcs[,1:6]) # Multinomial log-linear regression</code></pre>
+<pre class="r"><code>pcsb = cbind(data.frame(bpartbin),data.frame(pcs)) # dataset
+zz = multinom(pcsb$bpartbin ~ ., data = pcsb[,1:6]) # Multinomial log-linear regression</code></pre>
 <pre><code>## # weights:  35 (24 variable)
 ## initial  value 6830.454500 
 ## iter  10 value 5030.738100
@@ -169,7 +169,7 @@ zz = multinom(pcs$bpartbin ~ ., data = pcs[,1:6]) # Multinomial log-linear regre
 
 zbest=stepAIC(zz,k=N) # Check if the selected model is the best. It turns to be the best</code></pre>
 <pre><code>## Start:  AIC=9909.6
-## pcs$bpartbin ~ X1 + X2 + X3 + X4 + X5
+## pcsb$bpartbin ~ X1 + X2 + X3 + X4 + X5
 ## 
 ## # weights:  30 (20 variable)
 ## initial  value 6830.454500 
@@ -217,12 +217,12 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. It turns to be 
 <pre class="r"><code># Prediction skill via RPSS
 ypred = predict(zz, type = &quot;probs&quot;) # prediction model
 
-p.real=rep(NA,5) # Real probabilities
+p.real=rep(NA,5) # Real probabilities (counts / total)
 for(i in 1:5){
   p.real[i]=table(bpartbin)[i]/length(bpartbin)
 }
 
-rps(bpartbin,ypred,baseline = p.real)$rpss</code></pre>
+rps(bpartbin,ypred,baseline = p.real)$rpss # Get RPSS score</code></pre>
 <pre><code>## [1] 0.2611934</code></pre>
 <p>This score, RPSS, answers the question: What is the relative improvement of the probability forecast over body injury data in predicting the category that the observations fell into (p.real based on counts vs. multinom. regression prediction).</p>
 </div>
@@ -257,9 +257,9 @@ for(i in 1:4){ # plot the four eigenvectors against each attribute
 </div>
 <div id="best-multinomial-regression-with-the-pca-as-predictors-to-model-the-probability-of-injuries" class="section level4">
 <h4>Best multinomial regression with the PCA as predictors to model the probability of injuries</h4>
-<p>This is done for each of the five category of body parts and later compute the RPSS</p>
-<pre class="r"><code>pcs = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
-zz = multinom(pcs$spartbin ~ ., data = pcs[,2:6]) # Multinomial log-linear regression</code></pre>
+<p>This is done for each of the four categories of injury severity and later compute the RPSS</p>
+<pre class="r"><code>pcss = cbind(data.frame(spartbin),data.frame(pcs)) # dataset
+zz = multinom(pcss$spartbin ~ ., data = pcss[,2:6]) # Multinomial log-linear regression</code></pre>
 <pre><code>## # weights:  28 (18 variable)
 ## initial  value 2470.376552 
 ## iter  10 value 1467.147486
@@ -270,7 +270,7 @@ zz = multinom(pcs$spartbin ~ ., data = pcs[,2:6]) # Multinomial log-linear regre
 
 zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant value is the best model</code></pre>
 <pre><code>## Start:  AIC=3066.74
-## pcs$spartbin ~ X1 + X2 + X3 + X4 + X5
+## pcss$spartbin ~ X1 + X2 + X3 + X4 + X5
 ## 
 ## # weights:  24 (15 variable)
 ## initial  value 2470.376552 
@@ -319,7 +319,7 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant valu
 ## converged
 ## 
 ## Step:  AIC=3044.92
-## pcs$spartbin ~ X1 + X2 + X3 + X4
+## pcss$spartbin ~ X1 + X2 + X3 + X4
 ## 
 ## # weights:  20 (12 variable)
 ## initial  value 2470.376552 
@@ -354,7 +354,7 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant valu
 ## converged
 ## 
 ## Step:  AIC=3025.65
-## pcs$spartbin ~ X2 + X3 + X4
+## pcss$spartbin ~ X2 + X3 + X4
 ## 
 ## # weights:  16 (9 variable)
 ## initial  value 2470.376552 
@@ -383,7 +383,7 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant valu
 ## converged
 ## 
 ## Step:  AIC=3010.38
-## pcs$spartbin ~ X2 + X3
+## pcss$spartbin ~ X2 + X3
 ## 
 ## # weights:  12 (6 variable)
 ## initial  value 2470.376552 
@@ -408,7 +408,7 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant valu
 ## converged
 ## 
 ## Step:  AIC=3000.41
-## pcs$spartbin ~ X3
+## pcss$spartbin ~ X3
 ## 
 ## # weights:  8 (3 variable)
 ## initial  value 2470.376552 
@@ -423,7 +423,7 @@ zbest=stepAIC(zz,k=N) # Check if the selected model is the best. A constant valu
 ## converged
 ## 
 ## Step:  AIC=2999.57
-## pcs$spartbin ~ 1</code></pre>
+## pcss$spartbin ~ 1</code></pre>
 <pre class="r"><code># Prediction skill via RPSS
 ypred = predict(zz, type = &quot;probs&quot;) # prediction model
 
@@ -434,14 +434,116 @@ for(i in 1:4){
 
 rps(spartbin,ypred,baseline = p.real)$rpss</code></pre>
 <pre><code>## [1] 0.007163971</code></pre>
-<p>According to the definition of the RPSS the improvement given by the model is really low, as it happens to Tixier et al. (2016) due to imbalanced categories.</p>
+<p>According to the definition of the RPSS the improvement given by the model is really low, as it happens to Tixier et al. (2016) due to imbalanced number of data in each category.</p>
 </div>
+</div>
+<div id="d-apply-cart-and-compare-the-results" class="section level3">
+<h3>(d) Apply CART and compare the results</h3>
+<pre class="r"><code>tree.body = rpart(bpartbin ~ X1+X2+X3+X4, data=pcsb, method=&quot;class&quot;) # rpart package
+tree.sev = rpart(spartbin ~ X1+X2+X3+X4, data=pcss, method=&quot;class&quot;) # rpart package
+
+summary(tree.body)</code></pre>
+<pre><code>## Call:
+## rpart(formula = bpartbin ~ X1 + X2 + X3 + X4, data = pcsb, method = &quot;class&quot;)
+##   n= 4244 
+## 
+##           CP nsplit rel error    xerror       xstd
+## 1 0.17154472      0 1.0000000 1.0000000 0.01307200
+## 2 0.06097561      1 0.8284553 0.8288618 0.01323092
+## 3 0.01463415      2 0.7674797 0.7691057 0.01316305
+## 4 0.01000000      3 0.7528455 0.7560976 0.01313974
+## 
+## Variable importance
+## X1 X3 X2 X4 
+## 42 36 20  2 
+## 
+## Node number 1: 4244 observations,    complexity param=0.1715447
+##   predicted class=4  expected loss=0.5796418  P(node) =1
+##     class counts:  1017   102   514  1784   827
+##    probabilities: 0.240 0.024 0.121 0.420 0.195 
+##   left son=2 (751 obs) right son=3 (3493 obs)
+##   Primary splits:
+##       X1 &lt; 0.4431599  to the right, improve=305.70680, (0 missing)
+##       X3 &lt; -0.8837396 to the left,  improve=239.47460, (0 missing)
+##       X2 &lt; -0.7976636 to the left,  improve=156.72250, (0 missing)
+##       X4 &lt; -0.204822  to the right, improve= 87.90025, (0 missing)
+##   Surrogate splits:
+##       X3 &lt; -0.8837396 to the left,  agree=0.907, adj=0.474, (0 split)
+##       X4 &lt; 2.309484   to the right, agree=0.827, adj=0.021, (0 split)
+##       X2 &lt; 3.025375   to the right, agree=0.824, adj=0.004, (0 split)
+## 
+## Node number 2: 751 observations,    complexity param=0.01463415
+##   predicted class=1  expected loss=0.2703063  P(node) =0.1769557
+##     class counts:   548    20    26   126    31
+##    probabilities: 0.730 0.027 0.035 0.168 0.041 
+##   left son=4 (554 obs) right son=5 (197 obs)
+##   Primary splits:
+##       X3 &lt; 1.127742   to the left,  improve=79.05292, (0 missing)
+##       X2 &lt; 0.7731964  to the left,  improve=78.55526, (0 missing)
+##       X1 &lt; 1.633044   to the left,  improve=25.14193, (0 missing)
+##       X4 &lt; 0.6247775  to the left,  improve=19.80441, (0 missing)
+##   Surrogate splits:
+##       X2 &lt; 0.9769031  to the left,  agree=0.988, adj=0.954, (0 split)
+##       X1 &lt; 2.031428   to the left,  agree=0.794, adj=0.213, (0 split)
+##       X4 &lt; 0.4023179  to the left,  agree=0.760, adj=0.086, (0 split)
+## 
+## Node number 3: 3493 observations,    complexity param=0.06097561
+##   predicted class=4  expected loss=0.5253364  P(node) =0.8230443
+##     class counts:   469    82   488  1658   796
+##    probabilities: 0.134 0.023 0.140 0.475 0.228 
+##   left son=6 (3120 obs) right son=7 (373 obs)
+##   Primary splits:
+##       X2 &lt; -1.329004  to the right, improve=96.75888, (0 missing)
+##       X3 &lt; 1.030624   to the left,  improve=95.10270, (0 missing)
+##       X4 &lt; -0.6668742 to the right, improve=65.68973, (0 missing)
+##       X1 &lt; -1.07434   to the right, improve=53.09423, (0 missing)
+##   Surrogate splits:
+##       X3 &lt; 1.030624   to the left,  agree=0.994, adj=0.944, (0 split)
+##       X1 &lt; -1.052368  to the right, agree=0.940, adj=0.437, (0 split)
+##       X4 &lt; 0.978528   to the left,  agree=0.895, adj=0.013, (0 split)
+## 
+## Node number 4: 554 observations
+##   predicted class=1  expected loss=0.1119134  P(node) =0.1305372
+##     class counts:   492     1    14    34    13
+##    probabilities: 0.888 0.002 0.025 0.061 0.023 
+## 
+## Node number 5: 197 observations
+##   predicted class=4  expected loss=0.5329949  P(node) =0.04641847
+##     class counts:    56    19    12    92    18
+##    probabilities: 0.284 0.096 0.061 0.467 0.091 
+## 
+## Node number 6: 3120 observations
+##   predicted class=4  expected loss=0.4955128  P(node) =0.7351555
+##     class counts:   446    77   461  1574   562
+##    probabilities: 0.143 0.025 0.148 0.504 0.180 
+## 
+## Node number 7: 373 observations
+##   predicted class=5  expected loss=0.3726542  P(node) =0.08788878
+##     class counts:    23     5    27    84   234
+##    probabilities: 0.062 0.013 0.072 0.225 0.627</code></pre>
+<pre class="r"><code>plot(tree.body,main=&quot;Classification Tree for body part safety&quot;)
+text(tree.body, all=TRUE, cex=.8)</code></pre>
+<p><img src="data:image/png;base64,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CCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDplgqIegAABLKSURBVEYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZlaUoOmRggpmVpSg6ZGCCmZWlKDpkYIKZla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AjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0MiAAjQyoACNDChAIwMK0Oj/A/VMvfmE5qktAAAAAElFTkSuQmCC" width="672" /></p>
+<pre class="r"><code>summary(tree.sev) # No tree, just one node</code></pre>
+<pre><code>## Call:
+## rpart(formula = spartbin ~ X1 + X2 + X3 + X4, data = pcss, method = &quot;class&quot;)
+##   n= 1782 
+## 
+##   CP nsplit rel error xerror xstd
+## 1  0      0         1      0    0
+## 
+## Node number 1: 1782 observations
+##   predicted class=1  expected loss=0.2542088  P(node) =1
+##     class counts:  1329   202    96   155
+##    probabilities: 0.746 0.113 0.054 0.087</code></pre>
+<pre class="r"><code>try(plot(tree.sev,main=&quot;Classification Tree for injury severity&quot;)) # gives error</code></pre>
+<p>The results observed via PCA analysis are confirmed in the CART: while body part safety tree has 4 nodes, the injury severity has just one (no classification possible).</p>
 <div id="aux-code-to-call-libraries-own-functions-and-variables" class="section level4">
 <h4>Aux code to call libraries, own functions and variables</h4>
 <pre class="r"><code>##
 ## Source Libraries
 ##
-libr=c(&quot;magrittr&quot;,&quot;nnet&quot;,&quot;MASS&quot;,&quot;verification&quot;)
+libr=c(&quot;magrittr&quot;,&quot;nnet&quot;,&quot;MASS&quot;,&quot;verification&quot;,&quot;rpart&quot;)
 options(warn=-1)
 suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
 
