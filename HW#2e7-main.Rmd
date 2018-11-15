@@ -1,6 +1,8 @@
 ---
 title: "HW#2e7-main"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE, ref.label=c("sources1","sources2")}
@@ -52,8 +54,14 @@ optimal_k = ks[which.max(sil)]
 
 message('The optimal number of clusters is: ',optimal_k)
 
+```
+
+The resulting model can be plotted as:
+
+```{r}
+
 # plot the clusters spatially
-dev.new()
+
 clusters = cbind(ll,cluster=cluster_list[[which(ks==optimal_k)]]$clustering)
 p_map = ggplot(clusters)+
     geom_point(aes(lon,lat,color=factor(cluster)))+
@@ -65,13 +73,12 @@ p_map = ggplot(clusters)+
 print(p_map)
 ```
 
-The algorithm selects ks = 4 as optimal solution. The patterns are similar to the ones showed in Braken (2015), although the author uses 8 clusters. For that purpose we reproduce below the plot for 8 clusters.
+The algorithm selects ks = 4 as optimal solution. The patterns are similar to the ones showed in Bracken (2015), although the author uses 8 clusters. For that purpose we reproduce below the plot for 8 clusters.
 
 ```{r}
 suboptimal_k = 8
 
 # plot the clusters spatially
-dev.new()
 clusters = cbind(ll,cluster=cluster_list[[which(ks==suboptimal_k)]]$clustering)
 p_map = ggplot(clusters)+
     geom_point(aes(lon,lat,color=factor(cluster)))+
@@ -83,7 +90,8 @@ p_map = ggplot(clusters)+
 print(p_map)
 ```
 
-To better compare the similarities, the original map is included also here: ![Brecken2015wsp](https://github.com/albegon1/CVEN6833-HW-2/blob/master/bracken2015wsp.JPG)
+To better compare the similarities, the original map is included also here:
+![Brecken2015wsp](https://albegon1.github.io/CVEN6833-HW-2/bracken2015wsp.JPG)
 
 #### Aux code to call libraries, own functions and variables
 
