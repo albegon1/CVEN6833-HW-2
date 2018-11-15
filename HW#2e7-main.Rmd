@@ -1,0 +1,157 @@
+---
+title: "HW#2e7-main"
+output: html_document
+---
+
+```{r setup, include=FALSE, ref.label=c("sources1","sources2")}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Perform clustering of the Extremes using Bernard et al. (2013)
+
+The winter seasonal data from Brecken et al. (2015) is transformed into a matrix containing 3 day max precipitation, columns being stations and rows years (if data is available). The code used for that purpose is included at the end of the document.
+
+```{r}
+load("xx.RData") #. 
+# xx: 3 day max precipitation data western USA. Col are stations Row are years
+# ll: lat lon corresponding to each station
+# stations: name of stations
+# year: range of years with data available
+
+xx=xx[colnames(xx)[colSums(is.na(xx)) < 8 ]] # reduce empty data. Criteria: match number
+ll=ll[colnames(xx),]
+```
+
+First, we cluster data in the range 2:20 recursively using *Partitioning Around Medoids*.
+
+```{r}
+ks=2:20
+cluster_list = list()
+for(k in ks){
+    message('Trying ',k,' clusters')
+    cluster_list[[which(ks == k)]] = pam_fmado_ll(xx,k,ll) # pam
+    }
+```
+
+To select the best cluster, we use the maximum silhoutte value, as follows:
+
+```{r}
+# find the average silhouette value (smaller is better)
+sil = sapply(cluster_list,function(x)x$silinfo$avg.width)
+
+# plot the ave silhouette value versus k, look for a maximum
+p_sil = qplot(ks,sil)+
+    geom_abline(aes(intercept=min(sil)),slope=0)+
+    xlab('Number of clusters')+
+    ylab('Silhouette')+
+    theme_minimal()
+print(p_sil)
+
+# find the optimal k
+optimal_k = ks[which.max(sil)]
+
+message('The optimal number of clusters is: ',optimal_k)
+
+# plot the clusters spatially
+dev.new()
+clusters = cbind(ll,cluster=cluster_list[[which(ks==optimal_k)]]$clustering)
+p_map = ggplot(clusters)+
+    geom_point(aes(lon,lat,color=factor(cluster)))+
+    scale_color_manual('Cluster',values=tim.colors(optimal_k))+
+    theme_minimal()+
+    borders('state')+
+    coord_quickmap(xlim=c(-125,-105),ylim=c(31,50))
+
+print(p_map)
+```
+
+The algorithm selects ks = 4 as optimal solution. The patterns are similar to the ones showed in Braken (2015), although the author uses 8 clusters. For that purpose we reproduce below the plot for 8 clusters.
+
+```{r}
+suboptimal_k = 8
+
+# plot the clusters spatially
+dev.new()
+clusters = cbind(ll,cluster=cluster_list[[which(ks==suboptimal_k)]]$clustering)
+p_map = ggplot(clusters)+
+    geom_point(aes(lon,lat,color=factor(cluster)))+
+    scale_color_manual('Cluster',values=tim.colors(suboptimal_k))+
+    theme_minimal()+
+    borders('state')+
+    coord_quickmap(xlim=c(-125,-105),ylim=c(31,50))
+
+print(p_map)
+```
+
+To better compare the similarities, the original map is included also here: ![Brecken2015wsp](https://github.com/albegon1/CVEN6833-HW-2/blob/master/bracken2015wsp.JPG)
+
+#### Aux code to call libraries, own functions and variables
+
+```{r sources1, results=FALSE}
+##
+## Source Libraries
+##
+
+libr=c("cluster","ggplot2","fields","magrittr")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+##
+## Source data
+##
+
+### 3 day max precipitation data western USA
+
+ghcn=read.csv("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/ghcn_3day_max_west_us.csv")
+
+stations=levels(ghcn$station) # list of stations
+ll=ghcn[match(stations,ghcn$station),c("lat","lon")] %>% `rownames<-`(stations) # lat lon ass. with stations
+year=unique(ghcn$year) # list of years
+```
+```{r eval=FALSE}
+
+#### Design matrix, colums are stations, rows are time
+#### This takes ~ 30 s. Load file for knit version
+
+xx=matrix(NA,ncol = length(stations),nrow = length(year)) %>% as.data.frame(.,row.names=year) %>% set_colnames(stations)
+
+for(j in 1:dim(xx)[2]){
+  aux = ghcn[which(ghcn$station == stations[j] & ghcn$season == "winter"),c("year","max")]
+  xx[paste(aux[,1]),stations[j]] = aux[,2]
+  if(j%%10==0){print(j)}
+  }
+```
+```{r sources2, results=FALSE}
+##
+## Source functions
+## 
+
+### Partition around medoids (spatial extreme data clustering)
+pam_fmado_ll <- function (x, k, ll) {
+
+    # x - Design matrix, typically colums are stations, rows are time 
+    # k - Number of clusters
+    # ll - two column matrix of lat long points (or preferably projected) with N rows
+    
+    N = ncol(x) # number of stations 
+    T = nrow(x) # number of time points
+
+    # compute the F-madogram distance
+    V = array(NaN, dim = c(T, N))
+    for (p in 1:N) {
+        x.vec = as.vector(x[, p])
+        Femp = ecdf(x.vec)(x.vec)
+        V[, p] = Femp
+    }
+    DD = dist(t(V), method = "manhattan", diag = TRUE, upper = TRUE)/(2 * T)
+
+    # weight by physical distance
+    DDll = dist(ll,method='manhattan')
+    DDw = as.matrix(DD) + t(t(as.matrix(DDll))/apply(as.matrix(DDll),2,max))*max(as.matrix(DD))
+
+    # do the clustering
+    output = pam(DDw, k, diss = TRUE, medoids = NULL)
+    return(output)
+}
+
+```
