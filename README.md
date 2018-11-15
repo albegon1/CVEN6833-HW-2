@@ -1,5 +1,5 @@
-# CVEN6833-HW-2
-Bayesian Hierarchical model, PCA, CART, Cluster analysis
+# CVEN6833 HW#2 
+Bayesian Hierarchical Modeling, CART, Clustering, PCA, Multinomial Regression, CCA and Multivariate field forecasting
 
 ## Exercise 1
 Bayesian Hierarchical model using a GLM fitted with elevation only.
