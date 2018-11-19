@@ -146,7 +146,7 @@ points(1:25, lambdas[1:25], col="red")
 ```{r}
 for(i in 1:4){
   quilt.plot(xlongs,xlats,zsvd$u[,i],xlim=range(-125,-100),main=paste("Spatial Component (eigenvector) number",i))
-  map("state",add=TRUE)
+  maps::map("state",add=TRUE)
 }
 ```
 
@@ -158,7 +158,7 @@ westernpcs=as.data.frame(matrix(, nrow = length(pcs[,1]), ncol = 4))
 colnames(westernpcs)=c("PC1","PC2","PC3","PC4")
 for(i in 1:4){
   westernpcs[,i]=scale(pcs[,i])
-  plot(seq(from=1901,length.out=N),scale(pcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Spatial Component (eigenvector) number",i))
+  plot(seq(from=1901,length.out=N),scale(pcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Temporal Component (eigenvalue) number",i))
 }
 ```
 
@@ -177,7 +177,7 @@ A simple glm is added to show trend.
 par(mfrow=c(2,2))
 rotpcs=t(t(zrot$loadings) %*% t(scale(winterprecip)))
 for(i in 1:4){
-  plot(seq(from=1901,length.out=N), scale(rotpcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Rotated Spatial Component (eigenvector) number",i))
+  plot(seq(from=1901,length.out=N), scale(rotpcs[,i]),type="b",xlab="Year",ylab=paste("PC",i),main=paste("Rotated temporal Component (eigenvalue) number",i))
   if(i==1){
     abline(glm(rotpcs[,i]~seq(from = 1901,length.out = N)), col="blue", lwd=2) # trend
   }
@@ -229,7 +229,7 @@ for(i in 1:4){
 
   image.plot(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),main=paste("Spatial Component (eigenvector) number",i))
   contour(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
-  map("world2",fill = TRUE,col="darkgray",border="gray",add=TRUE)
+  maps::map("world2",fill = TRUE,col="darkgray",border="gray",add=TRUE)
 }
 ```
 
@@ -252,8 +252,8 @@ par(mfrow=c(4,4))
 par(pty="m")
 for(i in 1:4){
   for(j in 1:4){
-    fit=locfit::locfit(westernpcs[,j]~pacificpcs[1:113,i])
-      plot(fit,get.data=TRUE,ylab=ifelse(j==1,paste("Precip",colnames(westernpcs)[i]),""),xlab=ifelse(i==4,paste("Pac SST",colnames(pacificpcs)[j]),""))   
+    fit=locfit(westernpcs[,j]~pacificpcs[1:113,i],alpha=1,deg=1)
+      plot(fit,get.data=TRUE,ylab=ifelse(j==1,paste("Precip",colnames(westernpcs)[i]),""),xlab=ifelse(i==4,paste("Pac SST",  colnames(pacificpcs)[j]),""))   
     # }
     }
   }
