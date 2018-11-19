@@ -32,8 +32,10 @@ winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW
 years = 1901:2013
 winterprecip = winterprecip[,2:(nlocs+1)]       #first column is year
 
+avgwinter = colMeans(winterprecip) # remove average at each node to see anomalies
+
 for(i in 1:dim(winterprecip)[1]){
-  winterprecip[i,]=winterprecip[i,] - mean(winterprecip[i,]) # Use precip - mean(year) as original data
+  winterprecip[i,]=winterprecip[i,] - avgwinter # Use precip - mean(point) as original data
 }
 ```
 
@@ -92,8 +94,18 @@ for(i in 1:N){ # get precipitation at each node
   rlist[[i]] <- colMeans(tmp_df,na.rm=T)  # get values assoc. to each node
 }
 
+winternode = rlist %>% unlist(.) %>%
+  {matrix(.,nrow = 81, ncol = N)} # avg precip at node
+
+quantnode = winternode %>% ecdf(.) %>% {.(winternode)} %>% 
+  matrix(.,nrow = 81,ncol = N) # Transform data in quantiles [0,1]
+
+breaks = c(0,0.25,0.5,0.75,1) # show breaks as quantiles
+
+# breaks = round(as.numeric(quantile(winternode)),2) # show breaks as quantiles
+
 # store data in a matrix
-comp = cbind(xlongs,xlats,t(matrix(unlist(rlist),nrow = N,ncol = 81)))
+comp = cbind(xlongs,xlats,quantnode)
 comp = as.data.frame(comp) # data frame
 colnames(comp) = c("xlongs","xlats","N1","N2",
                    "N3","N4","N5","N6","N7","N8","N9")
@@ -101,23 +113,34 @@ colnames(comp) = c("xlongs","xlats","N1","N2",
 p_map = function(i){ # plots a ggplot given the column of comp (means at each node)
   ggplot(comp,aes(x = xlongs,y = xlats)) +
   geom_point(aes_string(colour=colnames(comp)[i+2]),size = 5) +
-  scale_color_gradientn(colours = rev(tim.colors(n=8)),
-                        limits = c(-3, 3),na.value = "#00008F") +
+  scale_colour_gradientn(colours = rev(tim.colors(n=4)), breaks = breaks) +
       theme_minimal() +
   borders('state') +
   coord_quickmap(xlim=c(-125,-105),ylim=c(31,50)) +  
   theme(legend.position = "none",axis.title.x=element_blank(),
-         axis.title.y=element_blank(),
+         axis.title.y=element_blank(),legend.title=element_blank(),
         axis.text.x=element_blank(),axis.text.y=element_blank(),
         plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"))
 }
 
   # scale_colour_gradient2(low = "#B2182B", mid = "#FDDBC7",
-  # high = "#2166AC", midpoint = 1,limits=c(0,15)) +
+  # high = "#2166AC", midpoint = 0,limits=quantile(winterprecip,c(0,1)) +
   # 
   #     scale_color_gradientn(colours = brewer_pal("div",palette="RdBu")(8),
   #                       limits = c(0, 5),na.value = "#2166AC") +
 
+  # scale_color_gradientn(colours = rev(tim.colors(n=8)),
+  # limits = quantile(winterprecip,c(0,1)), na.value = "#00008F") +
+
+  # scale_color_gradientn(colours = rev(tim.colors(n=5)), breaks = breaks) +
+
+
+# quantt = as.character(quantile(winterprecip))
+# cols = rev(tim.colors(5))
+# names(cols) = quantt
+# cols <- c("8" = "red", "4" = "blue", "6" = "darkgreen", "10" = "orange")
+
+    
         
 ```
 ```{r fig.width=16, fig.height=16} 
@@ -191,7 +214,8 @@ for(i in c(7,8,9,4,5,6,1,2,3)){ # match node number w/ mfrow position
 
 ### Conclusions
 
-The El Niño and La Niña patterns observed in the PCA appear again in the SOM analysis. However, the N-S precipitation dicotomy in the Western US depending on the Pacific SST cannot be easily identified.
+The El Niño and La Niña patterns observed in the PCA analysis appear again when using SOM.
+Similarly, the N-S precipitation dicotomy in the Western US depending on the Pacific SST is clearly reproduced. El Niño leads to dry Northern winters and humid Shouthern ones, and the opposite happens when La Niña occurs.
 
 
 #### Aux code to source libraries, functions and variables
