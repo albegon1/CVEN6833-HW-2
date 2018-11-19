@@ -1,0 +1,217 @@
+---
+title: "HW#2e8-main"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, ref.label=c("sources1","sources2")}
+knitr::opts_chunk$set(echo = TRUE)
+
+# good short summary of SOMs available at
+# https://www.shanelynn.ie/self-organising-maps-for-customer-segmentation-using-r/
+
+```
+
+## Apply self-organizing maps (SOM) to the Western US winter seasonal precipitation
+
+Precipiation data in year-station format (Exercise 7) is loaded below. Only datapoints with 60 years or more of record history are included.
+
+```{r}
+set.seed(50) # make reproducible results 
+
+# Load winter precipitation data
+N = 113 # Time window
+wuplocs = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/WesternUS-coords.txt"), ncol=5,byrow=T)
+nlocs = dim(wuplocs)[1]
+xlats = wuplocs[,3]
+xlongs = -wuplocs[,4]
+
+winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/western-US-winterprecip-1901-2014.txt"),
+                      ncol=nlocs+1,byrow=T)
+years = 1901:2013
+winterprecip = winterprecip[,2:(nlocs+1)]       #first column is year
+
+for(i in 1:dim(winterprecip)[1]){
+  winterprecip[i,]=winterprecip[i,] - mean(winterprecip[i,]) # Use precip - mean(year) as original data
+}
+```
+
+The SOM is performed on the scaled precipitation data. Similarly to the Arctic Melt Onset SOM example, each point is considered the whole observations for a given year. The point will be assigned to a node depending on the distance with the other ones. Each node will be then composed of a mix of "attributes" (years) considered close.
+
+```{r}
+# Self-Organizing Map
+
+som.wp <- som(scale(winterprecip),grid=somgrid(3,3,'rectangular'),
+              maxNA.fraction=1)
+par(mfrow=c(1,1))
+
+plot(som.wp)                # Codes plot
+plot(som.wp,type="changes") # training progress
+
+print("Number of points at each node:")
+table(som.wp$unit.classif) # N datapoints at each node
+
+# Plot number of observations in each node
+colors <- function(n, alpha = 1) {
+  rev(heat.colors(n, alpha))
+}
+par(mfrow=c(2,2))
+plot(som.wp,type = "counts",
+     palette.name = colors,
+     heatkey = TRUE)
+
+# Mapping Points
+plot(som.wp,type = "mapping",
+     pchs = 1,main = "Mapping Type SOM")
+
+# Property Plot (scaled precipitation)
+coolBlueHotRed <- function(n, alpha = 1) {rainbow(n, end=4/6, alpha=alpha)[n:1]}
+plot(som.wp, type = "property", 
+     property = som.wp$codes[[1]][,1], main=names(som.wp$data)[1],
+     palette.name=coolBlueHotRed)
+
+# Mapping Distance
+plot(som.wp, type = "dist.neighbours", 
+     palette.name = terrain.colors)
+```
+
+### Composite the precipitation (real values)
+
+We can map now the precipitation at each node as a pattern considering all years at the node. The resulting map would be an averaged precipitation over the years pertaining to the specific node.
+
+```{r}
+
+# Display composited data into nodes
+
+N = som.wp$grid$xdim * som.wp$grid$ydim # N of nodes
+
+rlist <- list() # average precipitation data for all the years in a node
+for(i in 1:N){ # get precipitation at each node
+  tmp_df <- winterprecip[which(som.wp$unit.classif==i),]
+  rlist[[i]] <- colMeans(tmp_df,na.rm=T)  # get values assoc. to each node
+}
+
+# store data in a matrix
+comp = cbind(xlongs,xlats,t(matrix(unlist(rlist),nrow = N,ncol = 81)))
+comp = as.data.frame(comp) # data frame
+colnames(comp) = c("xlongs","xlats","N1","N2",
+                   "N3","N4","N5","N6","N7","N8","N9")
+
+p_map = function(i){ # plots a ggplot given the column of comp (means at each node)
+  ggplot(comp,aes(x = xlongs,y = xlats)) +
+  geom_point(aes_string(colour=colnames(comp)[i+2]),size = 5) +
+  scale_color_gradientn(colours = rev(tim.colors(n=8)),
+                        limits = c(-3, 3),na.value = "#00008F") +
+      theme_minimal() +
+  borders('state') +
+  coord_quickmap(xlim=c(-125,-105),ylim=c(31,50)) +  
+  theme(legend.position = "none",axis.title.x=element_blank(),
+         axis.title.y=element_blank(),
+        axis.text.x=element_blank(),axis.text.y=element_blank(),
+        plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"))
+}
+
+  # scale_colour_gradient2(low = "#B2182B", mid = "#FDDBC7",
+  # high = "#2166AC", midpoint = 1,limits=c(0,15)) +
+  # 
+  #     scale_color_gradientn(colours = brewer_pal("div",palette="RdBu")(8),
+  #                       limits = c(0, 5),na.value = "#2166AC") +
+
+        
+```
+```{r fig.width=16, fig.height=16} 
+
+# Plots all the datapoints in a 3x3 matrix
+# Order of numbers >> match node number w/ position in ggarrange array
+ggarrange(p_map(7), p_map(8), p_map(9), p_map(4), p_map(5), p_map(6), p_map(1), p_map(2), p_map(3), nrow = 3, ncol = 3,
+          common.legend = TRUE, legend="bottom")
+```
+
+### Composite the pacific SST into each node.
+
+The code below recalls how to plot the SST for a given year
+```{r}
+nrows=72 # data import setup
+ncols=36
+nyrs = 118  # Nov-Mar avg 1901 - 2018
+
+kaplan = # SST data row per NDJFM season format
+  readBin("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/Kaplan-SST-NDJFM1900-NDJFM2018.r4",what="numeric", n=( nrows * ncols * nyrs), size=4,endian="swap") %>% 
+  array(data = ., dim=c( nrows*ncols, nyrs ) ) %>% t(.) # 2D and transpose
+
+index1=kaplan[1,]<10 & kaplan[1,] != "NaN"
+sstdata=kaplan[,index1] # Drop missing data
+
+xgrid=seq(27.5,382.5,by=5) #Generate grid (27.5,382.5) format
+xgrid[xgrid>180]=xgrid[xgrid>180]-360 # -180 180 format
+ygrid=seq(-87.5,87.5,by=5)
+
+ylat = sort(ygrid,index.return=TRUE) # Indexing (for drawing if unsorted)
+xygrid=expand.grid(x=xgrid,y=ygrid) %>% .[c("y","x")] # Lat - Long grid..
+
+pacgrid=xygrid$y >= -20 & (xygrid$x >= 105 | xygrid$x <= -70) #grid limits
+indexpac=index1 & pacgrid # locations on kaplan grid
+xygrid1 = xygrid[indexpac,] # coordinates on kaplan grid
+
+sstannavg = kaplan[,indexpac] # Pacific data 
+
+xgrid=seq(27.5,382.5,by=5) #Generate grid (27.5,382.5) format
+xlong = sort(xgrid,index.return=TRUE)
+
+# Function to plot image plot given the list of years to average data
+
+sstplot = function(i){
+zfull = rep(NA,length(xygrid[,1]))
+if(length(i)>1){
+  zfull[indexpac]=colMeans(sstannavg[i,],na.rm = TRUE)
+} else {
+    zfull[indexpac]=sstannavg[i,]}
+zmat = matrix(zfull,nrow=nrows,ncol=ncols)
+zmat = zmat[xlong[["ix"]],] %>% .[,ylat[["ix"]]] # match SST values with sorted rows,columns
+ 
+  image(xlong[["x"]],ylat[["x"]],zmat, xlim = range(125,280), ylim=range(-30,70),
+             asp=1,axes=FALSE, horizontal = TRUE,breaks = c(-2,seq(-0.5,0.5,length.out = 63),2),
+        col=tim.colors(n = 64, alpha=1.0))
+  graphics::axis(side=1, labels=FALSE)
+  graphics::axis(side=2, labels=FALSE)
+  contour(xlong[["x"]],ylat[["x"]],zmat,ylim=range(-40,70),add=TRUE,nlev=6,lwd=2)
+  map("world2",fill = TRUE,col="darkgray",border="gray",add=TRUE)
+}
+```
+
+With the function created, we can plot the average over the node years and plot them in a 3 x 3 matrix
+
+```{r fig.width=16, fig.height=16}
+par(mfrow=c(3,3))
+for(i in c(7,8,9,4,5,6,1,2,3)){ # match node number w/ mfrow position
+  sstplot(which(som.wp$unit.classif==i))
+}
+```
+
+### Conclusions
+
+The El Niño and La Niña patterns observed in the PCA appear again in the SOM analysis. However, the N-S precipitation dicotomy in the Western US depending on the Pacific SST cannot be easily identified.
+
+
+#### Aux code to source libraries, functions and variables
+
+```{r sources1, results=FALSE}
+##
+## Source Libraries
+##
+
+libr=c("kohonen","ggplot2","fields","magrittr","ggpubr","scales")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+##
+## Source data
+##
+
+
+##
+## Source functions
+## 
+
+```
