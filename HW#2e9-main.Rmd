@@ -1,0 +1,79 @@
+---
+title: "HW#2e8-main"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, ref.label=c("sources1","sources2")}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Joint Spatial Analysis & Field Forecasting using CCA
+
+One of the objectives of multivariate analysis is to enable multivariate forecasting. Here we wish to predict the winter precipitation over Arizona as a function of winter Pacific SSTs. We use CCA for this and the simplified steps are described below.
+
+### (i) Take the leading ~ 5 PCs of the winter SSTs and perform CCA with the leading ~ 5 PCs of winter precipitation.
+
+```{r}
+# load data
+
+## Western US precipitation
+winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/western-US-winterprecip-1901-2014.txt"),ncol=82,byrow=T)
+winterprecip = winterprecip[,2:82] # years = 1901:2013
+
+## Pacific SST
+load("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2/problem3.RData")
+
+## PCA on Western US precip
+p.svd = winterprecip %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
+p.pcs= t(t(p.svd$u) %*% t(scale(winterprecip))) %>% scale(.) # Principal Components
+p.lambdas=(p.svd$d/sum(p.svd$d)) # Eigenvalues
+
+## PCA on Pacific SST
+t.svd = sstannavg %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
+t.pcs=t(t(t.svd$u) %*% t(scale(sstannavg))) %>% scale(.) # Principal Components
+t.lambdas=(t.svd$d/sum(t.svd$d)) # Eigenvalues
+```
+
+DO CCA
+
+```{r}
+npc= 5 # N. of PCA to do CCA
+
+```
+
+
+### (ii) Fit a regression for each canonical variate of precipitation related to canonical variate of SSTs. 
+
+#### Use these regressions to predict the flow variates and back transform them to the original space – i.e., the precipitation space.
+
+### (iii) Evaluate the performance by computing R^2^ between the observed and predicted summer precipitation at each grid point.
+
+### (iv) Use the model to predict the maximum precipitation for the last two years.
+
+
+
+
+#### Aux code to source libraries, functions and variables
+
+```{r sources1, results=FALSE}
+##
+## Source Libraries
+##
+
+libr=c("kohonen","ggplot2","fields","magrittr","ggpubr","scales")
+options(warn=-1)
+suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
+
+##
+## Source data
+##
+
+
+##
+## Source functions
+## 
+
+```
