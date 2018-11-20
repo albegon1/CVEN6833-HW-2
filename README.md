@@ -1,4 +1,3 @@
-# CVEN6833 HW#2 
 Bayesian Hierarchical Modeling, CART, Clustering, PCA, Multinomial Regression, CCA and Multivariate field forecasting
 
 ## Exercise 1
