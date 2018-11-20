@@ -1,11 +1,11 @@
 ---
-title: "HW#2e8-main"
+title: "HW#2e9-main"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
 
-```{r setup, include=FALSE, ref.label=c("sources1","sources2")}
+```{r setup, include=FALSE, ref.label="sources1"}
 knitr::opts_chunk$set(echo = TRUE)
 
 ```
@@ -17,44 +17,218 @@ One of the objectives of multivariate analysis is to enable multivariate forecas
 ### (i) Take the leading ~ 5 PCs of the winter SSTs and perform CCA with the leading ~ 5 PCs of winter precipitation.
 
 ```{r}
-# load data
-
-## Western US precipitation
-winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/western-US-winterprecip-1901-2014.txt"),ncol=82,byrow=T)
-winterprecip = winterprecip[,2:82] # years = 1901:2013
-
-## Pacific SST
-load("C:/Users/alexb/Google Drive/CVEN 6833 ADAT/zz Homeworks/HW#2/CVEN6833-HW-2/problem3.RData")
-
-## PCA on Western US precip
-p.svd = winterprecip %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
-p.pcs= t(t(p.svd$u) %*% t(scale(winterprecip))) %>% scale(.) # Principal Components
+## PCA on Western US precip anomalies
+p.svd = wintanom %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
+p.pcs= t(t(p.svd$u) %*% t(scale(wintanom))) %>% scale(.) # Principal Components
 p.lambdas=(p.svd$d/sum(p.svd$d)) # Eigenvalues
 
-## PCA on Pacific SST
+## PCA on Pacific SST anomalies
 t.svd = sstannavg %>% scale(.) %>% var(.) %>% svd(.) # Eigen decomposition
 t.pcs=t(t(t.svd$u) %*% t(scale(sstannavg))) %>% scale(.) # Principal Components
 t.lambdas=(t.svd$d/sum(t.svd$d)) # Eigenvalues
+
+# Plot the PCs
+
+par(mfrow=c(3,2))
+par(mar=c(1,1,1,1))
+
+for(i in 1:5){
+  zfull = rep(NA,length(xygrid[,1]))
+  zfull[indexpac]=t.svd$u[,i]
+  zmat = matrix(zfull,nrow=72,ncol=36)
+
+  image(xgrid,ygrid,zmat,ylim=range(-25,50),
+             xlim=range(100,300),asp = 1,col=tim.colors(n = 64, alpha=1.0),
+             main=paste("Principal Component",i),axes=FALSE,
+             xlab="", ylab="" )
+  contour(xgrid,ygrid,zmat,ylim=range(-25,50),xlim=range(100,300),
+          add=TRUE,nlev=6,lwd=2)
+  map("world2",fill = TRUE,col="darkgray",border="gray",add=TRUE)
+}
+par(mfrow=c(1,1))
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+
+# Plot the PCs
+comp = cbind(xlongs,xlats,p.svd$u)
+comp = as.data.frame(comp) # data frame
+colnames(comp) = c("xlongs","xlats","PC1","PC2","PC3","PC4","PC5")
+
+p_map = function(comp,i){ # plots a ggplot given the column "i" of comp
+  ggplot(comp,aes(x = xlongs,y = xlats)) +
+  geom_point(aes_string(colour=colnames(comp)[i+2]),size = 5) +
+  scale_colour_gradientn(colours = rev(tim.colors(n=4))) +
+      theme_minimal() +
+  ggtitle(paste("Column",i))+
+  borders('state') +
+  coord_quickmap(xlim=c(-125,-105),ylim=c(31,50)) +  
+  theme(legend.position = "right",axis.title.x=element_blank(),
+         axis.title.y=element_blank(),legend.title=element_blank(),
+        axis.text.x=element_blank(),axis.text.y=element_blank(),
+        plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm"))}
+
+grid.arrange(p_map(comp,1),p_map(comp,2),p_map(comp,3),p_map(comp,4),
+             p_map(comp,5),nrow = 2, ncol = 3)
+
+#   breaks = c(0,0.25,0.5,0.75,1)
+#   breaks = quantile(as.matrix(comp[,-c(1,2)]))
+#   scale_colour_gradientn(colours = rev(tim.colors(n=4)), breaks = breaks) +
+
 ```
 
-DO CCA
+The Canonical Correlation Analysis is carried out using the first 5 PCs of SST, precip. The resulsts are checked against the built-in function *stats::cancor*.
 
 ```{r}
+
 npc= 5 # N. of PCA to do CCA
+p.pc=p.pcs[,1:npc] # select first 5
+t.pc=t.pcs[1:113,1:npc] # select first 5
 
+N = min(dim(p.pc)[1],dim(t.pc)[1]) # Time series
+
+Qx1 = qr.Q(qr(t.pc))
+Qy1 = qr.Q(qr(p.pc))
+T11 = qr.R(qr(t.pc))
+T22 = qr.R(qr(p.pc))
+VV=t(Qx1) %*% Qy1
+BB = svd(VV)$v
+AA = svd(VV)$u
+BB = solve(T22) %*% svd(VV)$v * sqrt(N-1)
+wm1 = p.pc %*% BB
+AA = solve(T11) %*% svd(VV)$u * sqrt(N-1)
+vm1 = t.pc %*% AA
+cancorln = svd(VV)$d[1:npc] #canonical correlation
+Fyy = var(p.pc) %*% BB
+
+cca=cancor(t.pc,p.pc) # Check results with built-in function
+print(cancorln)
+print(cca$cor)
 ```
-
+The results obtained from the principles approach are equivalent to the ones using the built-in *cancor* function
 
 ### (ii) Fit a regression for each canonical variate of precipitation related to canonical variate of SSTs. 
 
+The linear parameters obtained from the CCA are used to predict the PC of precipitation.
+
+```{r}
+betahat = solve(t(AA) %*% t(t.pc)%*% t.pc %*% AA) %*% t(AA) %*% t(t.pc) %*% p.pc
+
+ypred=t.pc %*% AA %*% betahat # linear prediction of precip PC. using SST PC 
+
+```
+
 #### Use these regressions to predict the flow variates and back transform them to the original space – i.e., the precipitation space.
 
-### (iii) Evaluate the performance by computing R^2^ between the observed and predicted summer precipitation at each grid point.
+Two alternatives are used, having high correlation (positive or negative)
+
+```{r}
+p.pred.pc=matrix(0,nrow = dim(p.pcs)[1],ncol = dim(p.pcs)[2])
+p.pred.pc[,1:npc] = ypred # linear prediction of precip PC. using SST PC (whole space)
+
+wintanom.pred = p.pred.pc %*% p.svd$u # scaled precip. prediction. Full eof
+
+E = p.svd$u
+E[,(npc+1):81]=0
+
+wintanom.pred2= p.pred.pc %*% t(E) # scaled precip. prediction. Partial eof
+
+par(mfrow=c(3,2))
+par(mar=c(1,1,1,1))
+
+for(i in 1:6){
+  plot(wintanom.pred[,i],wintanom.pred2[,i],xlab = "",ylab="")
+}
+
+par(mfrow=c(1,1))
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+
+p.mean = apply(wintanom, 2, mean)
+p.sd = apply(wintanom, 2, sd)
+
+wintanom.pred=t(t(wintanom.pred2)*p.sd + p.mean) # Select method 2 to rescale
+
+par(mfrow=c(3,2))
+par(mar=c(1,1,1,1))
+
+for(i in 1:6){
+  plot(wintanom[,i],wintanom.pred[,i],xlab = "",ylab="")
+  abline(lm(wintanom.pred[,i]~wintanom[,i]), col="red")
+}
+
+par(mfrow=c(1,1))
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+
+```
+
+### (iii) Evaluate the performance by computing R^2^ between the observed and predicted winter precipitation at each grid point.
+
+The correlation map (below) depicts a greater correlation in the South and North extremes of the Western US.
+
+```{r}
+
+## correlate the forecasted PCs with the historical PCs
+
+p.pc.cor = diag(cor(ypred,p.pc))
+
+## correlate the forecasted rainfall with the historical rainfall
+
+p.cor = diag(cor(wintanom.pred,wintanom))
+
+## Map correlation
+
+comp = cbind(xlongs,xlats,p.cor)
+comp = as.data.frame(comp) # data frame
+colnames(comp) = c("xlongs","xlats","Correlation")
+p_map(comp,1)
+
+```
+
 
 ### (iv) Use the model to predict the maximum precipitation for the last two years.
 
+Using the data from *kaplan* SST, we will obtain the precipitation for the years 2017, 2018 (Nov 2016 - Mar 2017 and Nov 2017 - Mar 2018).
 
+First, we obtain the PC of the SST for the given years (17-18):
 
+```{r}
+sst1718 = sstannavg[117:118,] %>% scale(.) # SST for the years 2017 - 2018
+
+sst1718.pc = sst1718 %*% t.svd$u # Get PC
+sst1718.pc = scale(sst1718.pc[,1:npc])  # Trim 5 first PC and scale
+
+print(sst1718.pc)
+```
+
+The PC are used to predict the PC of the rainfall over the US, as follows:
+
+```{r}
+ypred.1718=sst1718.pc %*% AA %*% betahat
+
+print(ypred.1718)
+```
+
+With the PC of the rainfall, we can now map the predicted precipitations by back transforming the PC to the original space.
+
+```{r}
+p.pred1718.pc = matrix(0,nrow = dim(ypred.1718)[1],ncol = dim(p.pred.pc)[2])
+p.pred1718.pc[,1:npc] = ypred.1718 # linear prediction of precip PC. using SST PC (whole space)
+
+wintanom.pred1718= p.pred1718.pc %*% t(E) # scaled precip. prediction. Partial eof
+
+wintanom.pred1718=t(t(wintanom.pred1718)*p.sd + p.mean) # rescale
+
+```
+
+We can now map the rainfall anomalies for the winters of 2017, 2018.
+
+```{r}
+comp = cbind(xlongs,xlats,t(wintanom.pred1718))
+comp = as.data.frame(comp) # data frame
+colnames(comp) = c("xlongs","xlats","Winter17","Winter18")
+
+grid.arrange(p_map(comp,1),p_map(comp,2),nrow = 1)
+```
+
+The results indicate a low anormality with respect to average rainfall. This is coincident with the weak La Niña phenomena observed during the winters of 16-17 and 17-18.
 
 #### Aux code to source libraries, functions and variables
 
@@ -63,7 +237,7 @@ npc= 5 # N. of PCA to do CCA
 ## Source Libraries
 ##
 
-libr=c("kohonen","ggplot2","fields","magrittr","ggpubr","scales")
+libr=c("magrittr","stats","maps","fields","graphics","ggplot2","gridExtra")
 options(warn=-1)
 suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
 
@@ -71,6 +245,44 @@ suppressPackageStartupMessages(lapply(libr, require,character.only = TRUE))
 ## Source data
 ##
 
+# load data
+
+## Western US precipitation
+wuplocs = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/WesternUS-coords.txt"), ncol=5,byrow=T)
+
+xlats = wuplocs[,3]
+xlongs = -wuplocs[,4]
+
+winterprecip = matrix(scan("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/western-US-winterprecip-1901-2014.txt"),ncol=82,byrow=T)
+winterprecip = winterprecip[,2:82] # years = 1901:2013
+
+aux =  colMeans(winterprecip)
+wintanom = matrix(,ncol = 81, nrow = 113)
+
+for(i in 1:113){
+  wintanom[i,] = winterprecip[i,] - aux}
+
+## Pacific SST
+
+xgrid=seq(27.5,382.5,by=5) #Generate grid (-180,180) format
+ygrid=seq(-87.5,87.5,by=5)
+
+xygrid=expand.grid(x=xgrid,y=ygrid) %>% .[c("y","x")] # Lat - Long grid..
+
+kaplan = # SST data row per NDJFM season format
+  readBin("http://civil.colorado.edu/%7Ebalajir/CVEN6833/HWs/HW-2-2018/Kaplan-SST-NDJFM1900-NDJFM2018.r4",what="numeric", n=( 72 * 36 * 118), size=4,endian="swap") %>% 
+  array(data = ., dim=c( 72 * 36, 118 ) ) %>% t(.) # 2D
+
+index1=kaplan[1,]<10 & kaplan[1,] != "NaN" # Remove out of bounds
+sstdata=kaplan[,index1] # Drop missing data
+
+#grid limits of tropical data
+pacgrid = (xygrid$y >= -25 & xygrid$y <25) & (xygrid$x >= 105 & xygrid$x <= 290) 
+
+indexpac=index1 & pacgrid # locations on kaplan grid
+xygrid1 = xygrid[indexpac,] # coordinates on kaplan grid
+
+sstannavg = kaplan[,indexpac] # Pacific data 
 
 ##
 ## Source functions
